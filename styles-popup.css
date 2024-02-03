@@ -1,0 +1,42 @@
+body {
+    width: 250px;
+}
+
+h1 {
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    margin: 10px;
+    font-family : 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#toggle-extension {
+    background-color: #0066ff;
+    font-weight: bold;
+    color: white;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    cursor: pointer;
+    text-align: center;
+    margin: auto;
+    padding: 10px;
+    border-radius: 10px;
+    display: flex;
+    box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.5);
+}
+
+#toggle-extension:hover {
+    background-color: white;
+    color: #0066ff;
+}
+
+#container-extension {
+    display: flex;
+}
+
+p {
+    font-size: 12px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 10px;
+    font-weight: 500;
+}
+
