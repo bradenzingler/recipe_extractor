@@ -12,15 +12,14 @@ var enabled = false;
 
 // Fetch the enabled state from storage
 chrome.storage.sync.get('enabled', function(data) {
-    enabled = data.enabled || false;
+    enabled = data.enabled;
     // Check if the extension is enabled and it's a recipe page
     if (enabled && isRecipePage()) {
         // Restore nightMode setting
         chrome.storage.sync.get(['nightMode'], function (result) {
             nightMode = result.nightMode;
+            nightMode ? updateNightMode(nightMode) : updateNightMode(false);
         });
-        // Apply night-mode styles
-        updateNightMode();
         
         // Restore immediatePopup setting
         chrome.storage.sync.get(['immediatePopup'], function (result) {
