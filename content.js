@@ -6,14 +6,70 @@
  * Email: bgzingler@wisc.edu
  * Last updated: 2/2/2024
  */
+var nightMode = false;
+var enabled = false;
 
 
-// Show the button and add the CSS file when the page is ready
-$(document).ready(function () {
-    if (isRecipePage()) {
-        showButton();
+// Fetch the enabled state from storage
+chrome.storage.sync.get('enabled', function(data) {
+    enabled = data.enabled || false;
+    // Check if the extension is enabled and it's a recipe page
+    if (enabled && isRecipePage()) {
+        // Restore nightMode setting
+        chrome.storage.sync.get(['nightMode'], function (result) {
+            nightMode = result.nightMode;
+        });
+        // Apply night-mode styles
+        updateNightMode();
+        
+        // Restore immediatePopup setting
+        chrome.storage.sync.get(['immediatePopup'], function (result) {
+            result.immediatePopup ? showRecipe() : showButton();
+        });
     }
 });
+
+/************** EVENT LISTENERS ******************/
+// Add listener for toggle changes
+chrome.storage.onChanged.addListener(function(changes, namespace){
+    if (changes.enabled) toggleExtension(changes.enabled.newValue);    
+});
+
+// Add listener for night mode changes
+chrome.storage.onChanged.addListener(function(changes, namespace){
+    if (changes.nightMode) updateNightMode(changes.nightMode.newValue);    
+});
+/************** END EVENT LISTENERS **************/
+
+
+/* This function handles changes in night mode settings */
+function updateNightMode(newValue) {
+    // Update nightMode setting
+    nightMode = newValue;
+
+    // Apply night-mode styles
+    let elements = document.querySelectorAll('*');
+    elements.forEach(element => {
+        if (element.id !== 'recipe-extractor-button' && element.id !== 'icon-img') {
+            element.style.backgroundColor = nightMode ? '#333' : 'white';
+            element.style.color = nightMode ? 'white' : '#333';
+        }
+    });
+    
+}
+
+
+/* This function handles changes in extension visibility settings */
+function toggleExtension(newValue) {
+    enabled = newValue;
+    if (isRecipePage() && enabled && !document.getElementById('recipe-extractor-button')) {
+        showButton();
+        updateNightMode(nightMode);
+    }
+    else {
+        document.getElementById('recipe-extractor-button').remove();
+    }
+}
 
 
 // Selectors for recipe pages
@@ -30,7 +86,9 @@ recipe_selectors = [
     '.directions',
     '.recipe__instructions',
     '.recipe-directions',
-    '.mntl-recipe-steps'
+    '.mntl-recipe-steps',
+    '.Wrapper-dxnTBC',
+    '.InstructionListWrapper-dcpygI'
 ]
 
 
@@ -67,6 +125,7 @@ function createDiv() {
     // add header
     let header = document.createElement('h1');
     header.textContent = "Recipe Extractor";
+    header.style.color = nightMode ? 'white' : 'black';
     div.appendChild(header);
     return div;
 }
@@ -96,7 +155,7 @@ function showRecipe() {
     });
     div.appendChild(closeButton);
 
-    // iterate through each selector
+    /* Iterate through each recipe selector and add to the popup if found */
     recipe_selectors.forEach(function (s) {
         let recipe = document.querySelector(s);
         if (recipe) {
@@ -104,14 +163,28 @@ function showRecipe() {
             // clone the recipe node
             let clone = recipe.cloneNode(true);
             clone.style.margin = '20px';
+            if (nightMode) clone.classList.add('night-mode'); 
 
             // add to page
             div.appendChild(clone);
             document.body.appendChild(div);
+            
+            // change colors if nightmode
+            if (nightMode) {
+                overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                div.style.backgroundColor = '#333';
+                div.style.color = 'white';
+                // do final check for all elements, allow them longer to load styles
+                let elements = document.querySelectorAll('*');
+                elements.forEach(element => {
+                    element.style.backgroundColor = '#333';
+                    element.style.color = 'white';
+                });
+                // ensure the button styles are correct
+                document.getElementById('recipe-extractor-button').style.backgroundColor = 'blue';
+            }
 
-            return false;
         }
-        return true;
     });
 }
 
