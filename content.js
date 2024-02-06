@@ -27,7 +27,8 @@ chrome.storage.sync.get('blacklist', function(data) {
             
             // Restore immediatePopup setting
             chrome.storage.sync.get(['immediatePopup'], function (result) {
-                result.immediatePopup ? showRecipe() : showButton();
+                // if immediatePopup is true, give a second for all elements to load
+                result.immediatePopup ? (setTimeout(() => showRecipe(), 2000)) : showButton();
             });
         }
     });
@@ -190,6 +191,7 @@ function showRecipe() {
 
     /* Iterate through each recipe selector and add to the popup if found */
     recipe_selectors.forEach(function (s) {
+
         let recipe = document.querySelector(s);
         if (recipe) {
 
@@ -213,10 +215,7 @@ function showRecipe() {
                     element.style.backgroundColor = '#333';
                     element.style.color = 'white';
                 });
-                // ensure the button styles are correct
-                document.getElementById('recipe-extractor-button').style.backgroundColor = 'blue';
             }
-
         }
     });
 }
