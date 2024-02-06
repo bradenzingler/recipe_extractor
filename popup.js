@@ -5,18 +5,20 @@
 document.addEventListener('DOMContentLoaded', function() {
 
 
-    /***************** Settings for disabling the extension *************/
+    /***************** Settings for toggling the extension *************/
     let button = document.getElementById('toggle-extension');
     // restore the state of the button
     chrome.storage.sync.get('enabled', function(data) {
         button.textContent = data.enabled ? 'Enabled' : 'Disabled';
         button.style.backgroundColor = data.enabled ? 'green' : 'red';
     });
+    // add listener for the button
     button.addEventListener('click', () => {
         button.textContent = button.textContent === 'Enabled' ? 'Disabled' : 'Enabled';
         button.style.backgroundColor = button.textContent === 'Enabled' ? 'green' : 'red';
         chrome.storage.sync.set({enabled: button.textContent === 'Enabled'});
     });
+
 
 
     /************** Settings for the immediate popup **************/
@@ -48,5 +50,20 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.style.backgroundColor = nightMode.checked ? '#333' : 'white';
         document.body.style.color = nightMode.checked ? 'white' : '#333';
     });
+
+
+    /******************** Blacklist settings - to be added *************************/
+    // let blacklistContainer = document.querySelector('.container-blacklist');
+    // // add li for each blacklisted site
+    // chrome.storage.sync.get('blacklist', function(data) {
+    //     if (!data.blacklist) {
+    //         let p = document.createElement('p');
+    //         p.textContent = 'No blacklisted sites';
+    //         blacklistContainer.appendChild(p);
+    //         return;
+    //     } else {
+            
+    //     }
+    // });
 });
 

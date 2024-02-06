@@ -8,25 +8,31 @@
  */
 var nightMode = false;
 var enabled = false;
+var blacklist;
 
 
-// Fetch the enabled state from storage
-chrome.storage.sync.get('enabled', function(data) {
-    enabled = data.enabled;
-    // Check if the extension is enabled and it's a recipe page
-    if (enabled && isRecipePage()) {
-        // Restore nightMode setting
-        chrome.storage.sync.get(['nightMode'], function (result) {
-            nightMode = result.nightMode;
-            nightMode ? updateNightMode(nightMode) : updateNightMode(false);
-        });
-        
-        // Restore immediatePopup setting
-        chrome.storage.sync.get(['immediatePopup'], function (result) {
-            result.immediatePopup ? showRecipe() : showButton();
-        });
-    }
+// Fetch the blacklist from storage
+chrome.storage.sync.get('blacklist', function(data) {
+    blacklist = data.blacklist;
+    // Fetch the enabled state from storage
+    chrome.storage.sync.get('enabled', function(data) {
+        enabled = data.enabled;
+        // Check if the extension is enabled and it's a recipe page
+        if (enabled && isRecipePage()) {
+            // Restore nightMode setting
+            chrome.storage.sync.get(['nightMode'], function (result) {
+                nightMode = result.nightMode;
+                nightMode ? updateNightMode(nightMode) : updateNightMode(false);
+            });
+            
+            // Restore immediatePopup setting
+            chrome.storage.sync.get(['immediatePopup'], function (result) {
+                result.immediatePopup ? showRecipe() : showButton();
+            });
+        }
+    });
 });
+
 
 /************** EVENT LISTENERS ******************/
 // Add listener for toggle changes
@@ -34,10 +40,17 @@ chrome.storage.onChanged.addListener(function(changes, namespace){
     if (changes.enabled) toggleExtension(changes.enabled.newValue);    
 });
 
-// Add listener for night mode changes
+// Add listener for night mode changes only if it is a recipe page
 chrome.storage.onChanged.addListener(function(changes, namespace){
-    if (changes.nightMode) updateNightMode(changes.nightMode.newValue);    
+    if (changes.nightMode && isRecipePage()) updateNightMode(changes.nightMode.newValue);    
 });
+
+// Add listener to update the blacklisted sites -  to be added
+// chrome.storage.onChanged.addListener(function(changes, namespace){
+//     if (changes.blacklist) {
+//         blacklist = changes.blacklist.newValue;
+//     }
+// });
 /************** END EVENT LISTENERS **************/
 
 
@@ -45,33 +58,38 @@ chrome.storage.onChanged.addListener(function(changes, namespace){
 function updateNightMode(newValue) {
     // Update nightMode setting
     nightMode = newValue;
+    let elements = document.querySelectorAll('*');
 
     // Apply night-mode styles
-    let elements = document.querySelectorAll('*');
     elements.forEach(element => {
         if (element.id !== 'recipe-extractor-button' && element.id !== 'icon-img') {
-            element.style.backgroundColor = nightMode ? '#333' : 'white';
-            element.style.color = nightMode ? 'white' : '#333';
+            element.style.backgroundColor = (nightMode && enabled) ? '#333' : 'white';
+            element.style.color = (nightMode && enabled) ? 'white' : '#333';
         }
     });
-    
 }
 
 
 /* This function handles changes in extension visibility settings */
 function toggleExtension(newValue) {
     enabled = newValue;
-    if (isRecipePage() && enabled && !document.getElementById('recipe-extractor-button')) {
+    if (isRecipePage() && enabled) {
         showButton();
-        updateNightMode(nightMode);
+        // Restore night mode
+        chrome.storage.sync.get(['nightMode'], function (result) {
+            nightMode = result.nightMode;
+            nightMode ? updateNightMode(nightMode) : updateNightMode(false);
+        });
     }
     else {
         document.getElementById('recipe-extractor-button').remove();
+        // turn off night mode because extension is off
+        updateNightMode(nightMode);        
     }
 }
 
 
-// Selectors for recipe pages
+/* Common selectors for recipe pages. Add classnames here as websites are found */
 recipe_selectors = [
     '.wprm-recipe-container',
     '.ingredients-body',
@@ -154,6 +172,22 @@ function showRecipe() {
     });
     div.appendChild(closeButton);
 
+    // add blacklist button - TO BE ADDED
+    // let blacklistButton = document.createElement('button');
+    // blacklistButton.id = 'recipe-blacklist-button';
+    // blacklistButton.textContent = 'Disable for this website';
+    // blacklistButton.addEventListener('click', () => {
+    //     chrome.storage.sync.get('blacklist', function(data) {
+    //         let updatedBlacklist = data.blacklist || []; // Default to an empty array if it doesn't exist yet
+    //         updatedBlacklist.push(window.location.hostname);
+    //         chrome.storage.sync.set({ blacklist: updatedBlacklist });
+    //         div.remove();
+    //         overlay.remove();
+    //         document.body.style.overflowY = 'auto'; // re-enable scrolling
+    //     });
+    // });
+    // div.appendChild(blacklistButton);
+
     /* Iterate through each recipe selector and add to the popup if found */
     recipe_selectors.forEach(function (s) {
         let recipe = document.querySelector(s);
@@ -194,14 +228,22 @@ function isRecipePage() {
     // check if page is google
     if (window.location.hostname.includes("google")) {
         return false;
+    }        
+
+    // check if page is within blacklist. If so, return false
+    chrome.storage.sync.get('blacklist', function(data) {
+        let blacklist = data.blacklist || [];
+        if (blacklist.includes(window.location.hostname)) {
+            console.log('blacklisted');
+            console.log(blacklist);
+            return false;
+        }
+    });
+
+    // check if page is a known recipe page
+    for (let i = 0; i < recipe_selectors.length; i++) {
+        if (document.querySelector(recipe_selectors[i])) {
+            return true;
+        }
     }
-
-    // Get all text of page
-    var text = $("body").text().toLowerCase();
-
-    // Use regex to find keywords
-    var keywords = ["ingredients", "recipe"];
-    var regex = new RegExp(keywords.join("|"), "i");
-    var found = text.match(regex);
-    return found;
 }
