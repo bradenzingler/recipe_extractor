@@ -28,7 +28,7 @@ chrome.storage.sync.get('blacklist', function(data) {
             // Restore immediatePopup setting
             chrome.storage.sync.get(['immediatePopup'], function (result) {
                 // if immediatePopup is true, give a second for all elements to load
-                result.immediatePopup ? (setTimeout(() => showRecipe(), 2000)) : showButton();
+                result.immediatePopup ? (setTimeout(() => showRecipe(), 1000)) : showButton();
             });
         }
     });
@@ -106,7 +106,8 @@ recipe_selectors = [
     '.recipe-directions',
     '.mntl-recipe-steps',
     '.Wrapper-dxnTBC',
-    '.InstructionListWrapper-dcpygI'
+    '.InstructionListWrapper-dcpygI',
+    '#structured-project-content_1-0'
 ]
 
 
@@ -114,7 +115,7 @@ recipe_selectors = [
 function showButton() {
 
     // create button
-    let button = document.createElement('div');
+    let button = document.createElement('button');
     button.id = 'recipe-extractor-button';
 
     // icon information
@@ -123,7 +124,6 @@ function showButton() {
     image.src = base64;
     image.id = 'icon-img';
     button.innerText += 'Show Recipe';
-
 
     // append button to page, add button functionality
     document.body.appendChild(button);
@@ -157,6 +157,16 @@ function showRecipe() {
     const overlay = document.createElement('div');
     overlay.id = 'recipe-overlay';
     document.body.appendChild(overlay);
+
+    // escape key closes the popup
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            div.remove();
+            overlay.remove();
+            document.body.style.overflowY = 'auto'; // re-enable scrolling
+            showButton();
+        }
+    });
 
     // disable scrolling in background
     document.body.style.overflowY = 'hidden';
