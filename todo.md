@@ -4,3 +4,5 @@
 * [ ] Add more support on chrome listing and images
 * [X] Fix nightmode to refresh when extension enabled
 * [ ] Add blacklists feature
+* [ ] Block all ads feature
+* [ ] When enabled, should check website again

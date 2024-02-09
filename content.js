@@ -4,17 +4,40 @@
  * 
  * Author: Braden Zingler
  * Email: bgzingler@wisc.edu
- * Last updated: 2/2/2024
+ * Last updated: 2/9/2024
  */
 var nightMode = false;
 var enabled = false;
 var blacklist;
+var ignored = ['recipe-extractor-button', 'icon-img', 'recipe-close-button', 'recipe-overlay'];
+var oldHTML = document.body.innerHTML;
 
 
-// Fetch the blacklist from storage
+// Common selectors for recipe pages. Add classnames here as websites are found
+recipe_selectors = [
+    '.wprm-recipe-container',
+    '.ingredients-body',
+    '.ingredients',
+    '.tasty-recipes', 
+    '.recipe-ingredients',
+    '.instructions',
+    '.mntl-structured-ingredients', 
+    '.recipe__ingredients',
+    '#zrdn-recipe-container',
+    '.directions',
+    '.recipe__instructions',
+    '.recipe-directions',
+    '.mntl-recipe-steps',
+    '.Wrapper-dxnTBC',
+    '.InstructionListWrapper-dcpygI',
+    '#structured-project-content_1-0'
+];
+
+
+// Initial loading of page 
 chrome.storage.sync.get('blacklist', function(data) {
     blacklist = data.blacklist;
-    // Fetch the enabled state from storage
+    // Fetch the toggle state from storage
     chrome.storage.sync.get('enabled', function(data) {
         enabled = data.enabled;
         // Check if the extension is enabled and it's a recipe page
@@ -45,13 +68,6 @@ chrome.storage.onChanged.addListener(function(changes, namespace){
 chrome.storage.onChanged.addListener(function(changes, namespace){
     if (changes.nightMode && isRecipePage()) updateNightMode(changes.nightMode.newValue);    
 });
-
-// Add listener to update the blacklisted sites -  to be added
-// chrome.storage.onChanged.addListener(function(changes, namespace){
-//     if (changes.blacklist) {
-//         blacklist = changes.blacklist.newValue;
-//     }
-// });
 /************** END EVENT LISTENERS **************/
 
 
@@ -63,7 +79,7 @@ function updateNightMode(newValue) {
 
     // Apply night-mode styles
     elements.forEach(element => {
-        if (element.id !== 'recipe-extractor-button' && element.id !== 'icon-img') {
+        if (!ignored.includes(element.id)) {
             element.style.backgroundColor = (nightMode && enabled) ? '#333' : 'white';
             element.style.color = (nightMode && enabled) ? 'white' : '#333';
         }
@@ -81,34 +97,16 @@ function toggleExtension(newValue) {
             nightMode = result.nightMode;
             nightMode ? updateNightMode(nightMode) : updateNightMode(false);
         });
-    }
-    else {
+    } else if(document.getElementById('recipe-popup')) {
+        // popup is up and the extension is disabled
+        closePopup();
+        document.getElementById('recipe-extractor-button').remove();
+    } else {        
         document.getElementById('recipe-extractor-button').remove();
         // turn off night mode because extension is off
-        updateNightMode(nightMode);        
+        updateNightMode(nightMode);
     }
 }
-
-
-/* Common selectors for recipe pages. Add classnames here as websites are found */
-recipe_selectors = [
-    '.wprm-recipe-container',
-    '.ingredients-body',
-    '.ingredients',
-    '.tasty-recipes', 
-    '.recipe-ingredients',
-    '.instructions',
-    '.mntl-structured-ingredients', 
-    '.recipe__ingredients',
-    '#zrdn-recipe-container',
-    '.directions',
-    '.recipe__instructions',
-    '.recipe-directions',
-    '.mntl-recipe-steps',
-    '.Wrapper-dxnTBC',
-    '.InstructionListWrapper-dcpygI',
-    '#structured-project-content_1-0'
-]
 
 
 /* This function adds a button to show the recipe*/
@@ -145,6 +143,7 @@ function createDiv() {
     header.textContent = "Recipe Extractor";
     header.style.color = nightMode ? 'white' : 'black';
     div.appendChild(header);
+
     return div;
 }
 
@@ -153,55 +152,22 @@ function createDiv() {
 function showRecipe() {
     let div = createDiv();
 
-    // the overlay greys the background out
-    const overlay = document.createElement('div');
-    overlay.id = 'recipe-overlay';
-    document.body.appendChild(overlay);
-
     // escape key closes the popup
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
-            div.remove();
-            overlay.remove();
-            document.body.style.overflowY = 'auto'; // re-enable scrolling
-            showButton();
+            closePopup();
         }
     });
-
-    // disable scrolling in background
-    document.body.style.overflowY = 'hidden';
 
     // add close button
     let closeButton = document.createElement('button');
     closeButton.id = 'recipe-close-button';
     closeButton.textContent = 'Exit';
-    closeButton.addEventListener('click', () => {
-        div.remove();
-        overlay.remove();
-        document.body.style.overflowY = 'auto'; // re-enable scrolling
-        showButton();
-    });
     div.appendChild(closeButton);
+    closeButton.addEventListener('click', () => { closePopup(); });
 
-    // add blacklist button - TO BE ADDED
-    // let blacklistButton = document.createElement('button');
-    // blacklistButton.id = 'recipe-blacklist-button';
-    // blacklistButton.textContent = 'Disable for this website';
-    // blacklistButton.addEventListener('click', () => {
-    //     chrome.storage.sync.get('blacklist', function(data) {
-    //         let updatedBlacklist = data.blacklist || []; // Default to an empty array if it doesn't exist yet
-    //         updatedBlacklist.push(window.location.hostname);
-    //         chrome.storage.sync.set({ blacklist: updatedBlacklist });
-    //         div.remove();
-    //         overlay.remove();
-    //         document.body.style.overflowY = 'auto'; // re-enable scrolling
-    //     });
-    // });
-    // div.appendChild(blacklistButton);
-
-    /* Iterate through each recipe selector and add to the popup if found */
+    // Iterate through each recipe selector and add to the popup if found 
     recipe_selectors.forEach(function (s) {
-
         let recipe = document.querySelector(s);
         if (recipe) {
 
@@ -210,24 +176,44 @@ function showRecipe() {
             clone.style.margin = '20px';
             if (nightMode) clone.classList.add('night-mode'); 
 
+            // remove any ads from the clone, standardize all styles
+            filterContent(clone);
+
             // add to page
             div.appendChild(clone);
-            document.body.appendChild(div);
             
-            // change colors if nightmode
-            if (nightMode) {
-                overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-                div.style.backgroundColor = '#333';
-                div.style.color = 'white';
-                // do final check for all elements, allow them longer to load styles
-                let elements = document.querySelectorAll('*');
-                elements.forEach(element => {
-                    element.style.backgroundColor = '#333';
-                    element.style.color = 'white';
-                });
-            }
         }
     });
+
+    document.body.innerHTML = '';
+    document.body.appendChild(div);
+
+    // restore night mode to new elements
+    updateNightMode(nightMode);
+
+}
+
+
+/* This function closes the recipe extractor */
+function closePopup() {
+    let div = document.getElementById('recipe-popup');
+    if (div){
+        div.remove();
+        document.body.innerHTML = oldHTML;
+        showButton();
+    }
+}
+
+
+/* This function removes unwanted content from the recipe clone */
+function filterContent(node) {
+    // remove all buttons
+    let buttons = node.querySelectorAll('button');
+    buttons.forEach(button => button.remove());
+
+    // remove all links
+    let links = node.querySelectorAll('a');
+    links.forEach(link => link.remove());    
 }
 
 
@@ -240,14 +226,14 @@ function isRecipePage() {
     }        
 
     // check if page is within blacklist. If so, return false
-    chrome.storage.sync.get('blacklist', function(data) {
-        let blacklist = data.blacklist || [];
-        if (blacklist.includes(window.location.hostname)) {
-            console.log('blacklisted');
-            console.log(blacklist);
-            return false;
-        }
-    });
+    // chrome.storage.sync.get('blacklist', function(data) {
+    //     let blacklist = data.blacklist || [];
+    //     if (blacklist.includes(window.location.hostname)) {
+    //         console.log('blacklisted');
+    //         console.log(blacklist);
+    //         return false;
+    //     }
+    // });
 
     // check if page is a known recipe page
     for (let i = 0; i < recipe_selectors.length; i++) {

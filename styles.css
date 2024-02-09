@@ -1,3 +1,9 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
 #recipe-extractor-button {
     position: fixed;
     top: 0;
@@ -22,18 +28,9 @@
 }
 
 #recipe-popup {
-    position: fixed;
-    top: 45%;
-    left: 50%;
-    transform : translate(-50%, -50%);
-    z-index: 100000000000;
-    padding: 20px;
-    margin: 40px;
-    background-color: white;
-    border-radius: 10px;
-    box-shadow: 0 0 10px 0 rgba(0,0,0,0.5);
-    max-height: 90%;
-    overflow-y: auto;
+    justify-content: center;
+    z-index: 100000000000000000000;
+    text-align: center;
 }
 
 #recipe-overlay {
@@ -47,6 +44,7 @@
 }
 
 #recipe-close-button {
+    all: revert;
     position: fixed;
     top: 5px;
     right: 5px;
@@ -60,15 +58,30 @@
     text-align: center;
     margin: auto;
     padding: 10px;
+    border: none;
     border-radius: 10px;
     display: flex;
-    height: fit-content;
-    box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.5);
 }
 
 #recipe-close-button:hover {
     background-color: white;
     color: #0066ff;
+}
+
+#recipe-blacklist-button {
+    all: revert;
+    z-index: 1000000000;
+    background-color: #0066ff;
+    font-weight: bold;
+    font-size: 20px;
+    color: white;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    cursor: pointer;
+    text-align: center;
+    margin: auto;
+    border: none;
+    border-radius: 10px;
+    display: flex;
 }
 
 
