@@ -20,19 +20,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
 
-
-    /************** Settings for the immediate popup **************/
-    let immediatePopup = document.querySelector('#immediate-popup');
-    // save the state of the immediatePopup if it changes
-    immediatePopup.addEventListener('change', function() {        
-        chrome.storage.sync.set({immediatePopup: immediatePopup.checked});
-    });
-     // check the box if the immediatePopup is true
-     chrome.storage.sync.get('immediatePopup', function(data) {
-        immediatePopup.checked = data.immediatePopup;
-    });
-
-
     /******************** Settings for night mode *******************/
     let nightMode = document.querySelector('#night-mode');
     // save the state of the immediatePopup if it changes
@@ -52,18 +39,5 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
 
-    /******************** Blacklist settings - to be added *************************/
-    // let blacklistContainer = document.querySelector('.container-blacklist');
-    // // add li for each blacklisted site
-    // chrome.storage.sync.get('blacklist', function(data) {
-    //     if (!data.blacklist) {
-    //         let p = document.createElement('p');
-    //         p.textContent = 'No blacklisted sites';
-    //         blacklistContainer.appendChild(p);
-    //         return;
-    //     } else {
-            
-    //     }
-    // });
 });
 

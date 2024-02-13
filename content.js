@@ -10,9 +10,10 @@
 var nightMode = false;
 var enabled = false;
 var blacklist;
-var ignored = ['recipe-extractor-button', 'button-container', 'recipe-text', 'icon-img', 'recipe-close-button', 'recipe-overlay'];
+var ignored = ['recipe-close-button', 'recipe-overlay'];
 var ogHTML = document.body.innerHTML;
 var ogCSS = document.head.innerHTML;
+
 
 /* instructions selectors */
 recipe_selectors = [
@@ -43,31 +44,23 @@ ingr_selectors = [
     '.field-ingredientstext',                   // countrycrock.com ingredients
     '.cooked-recipe-ingredients',               // lifeandhealth.org ingredients
     '.tasty-recipes-ingredients-body > ul > li', // sallysbakingaddiction.com ingredients
-    '.recipe-ingredients',                // gordonramsay.com ingredients
+    '.recipe-ingredients',                      // gordonramsay.com ingredients
 ];
 
 
-// Initial loading of page 
-chrome.storage.sync.get('blacklist', function(data) {
-    blacklist = data.blacklist;
-    // Fetch the toggle state from storage
-    chrome.storage.sync.get('enabled', function(data) {
-        enabled = data.enabled;
-        // Check if the extension is enabled and it's a recipe page
-        if (enabled && isRecipePage()) {
-            // Restore nightMode setting
-            chrome.storage.sync.get(['nightMode'], function (result) {
-                nightMode = result.nightMode;
-                nightMode ? updateNightMode(nightMode) : updateNightMode(false);
-            });
-            
-            // Restore immediatePopup setting
-            chrome.storage.sync.get(['immediatePopup'], function (result) {
-                // if immediatePopup is true, give a second for all elements to load
-                result.immediatePopup ? (setTimeout(() => showRecipe(), 0)) : showButton();
-            });
-        }
-    });
+
+// Fetch the toggle state from storage
+chrome.storage.sync.get('enabled', function(data) {
+    enabled = data.enabled;
+    // Check if the extension is enabled and it's a recipe page
+    if (enabled && isRecipePage()) {
+        showRecipe();
+        // Restore nightMode setting
+        chrome.storage.sync.get(['nightMode'], function (result) {
+            nightMode = result.nightMode;
+            nightMode ? updateNightMode(nightMode) : updateNightMode(false);
+        });
+    }
 });
 
 
@@ -104,63 +97,24 @@ function updateNightMode(newValue) {
 function toggleExtension(newValue) {
     enabled = newValue;
     if (isRecipePage() && enabled) {
-        showButton();
-        // Restore night mode
-        chrome.storage.sync.get(['nightMode'], function (result) {
-            nightMode = result.nightMode;
-            nightMode ? updateNightMode(nightMode) : updateNightMode(false);
-        });
+        showRecipe();
+        
     } else if(document.getElementById('recipe-popup')) {
         // popup is up and the extension is disabled
-        document.getElementById('recipe-popup') ? closePopup() : document.getElementById('recipe-popup');
-        updateNightMode(nightMode);
-        document.getElementById('recipe-extractor-button').remove();
-    } else {
-        updateNightMode(nightMode);
-        document.getElementById('recipe-extractor-button').remove();
-    }
+        document.getElementById('recipe-popup') ? closePopup() : null;
+    } 
+    // Update nightMode setting
+    updateNightMode(nightMode);
 }
 
 
-/* This function adds a button to show the recipe*/
-function showButton() {
-    if (document.getElementById('recipe-extractor-button')) return;
-
-    let button = document.createElement('button');
-    button.id = 'recipe-extractor-button';
-    button.draggable = 'true';
-    let base64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAC/VBMVEVHcEzKoX0IBgTJoHyEVSil7kzWwrDJoHzmSzvj4+PTsZTOrZADAgHTsZMFBAPEm3jTsZPKon8FAQENBAPAmXcCAACne1LjSjum7kzLpIG9l3XMpoPLo4DNpoTSr5DLpIHOqIjPq4vKoX4AAACqiGnSsJHQrIzJqIvSr5DTsZTQq4vNpoQXDgrQq4vQq4vLo4DUspXKoX7Sr5HUs5bRrY7TsZTUs5bSsJLRrY7TsZTUs5bUspXQsJXIoHwAAACYeF0AAABrVUIIBgWui2y2kXGUMCY6LiTDsqTJoXyFxwi/mHaFVim4x2VIGBKm7EwBAAAAAAAmDAlyJR0AAABaHRfRrY67nIE1KiElHhfQrI04LCJ6YUuriGorIhvCm3gDAgLNq4/Qq4zUs5ZvWETTsZSTdVvTsZPUs5Z3X0odFxI4LCJMPC8/MielOCx3XknRs5mWd1yKblXQq4ssIxvNqorOq4zIn3wBAQEdCQfaW0d6KB/e19DHa1PDnHnmTDsuJBykNird0snmSzzmSzvUu6bmTDvAPzKSdFrgSTreSTlIFxKAZk+YMicIAgLmSzvj4uHnSzvcRzmMYDfgX0qsiWqth2bFnXmvhmB+USaZc1B0SyOYeV7GhT/lTjzMmHbReUHEcjzJonvOTTd/bUvRSDe5xWW4r0TYRzjhSjqwwke9kkCo5ku6PTCu21a1zV6izkio50yq30utz0i7l0G0tEW6PTDKoX3nTDzk5OTXwrCm702ne1PAmXbDsqSFVim0nYbQRTbKon7MpILi39zZ2kbf2dPMpYPOrI7PqonZyLrg2tWUa0aoi2/lTTzVRjfmSzvRRTbKoHzFqnSm7Uy2rkTAtG7TuaPh3dnayr3Pr5PBj2/i4N7jTz7OcFjmTDzlUT/AmXfXeF2JYz+DVSjUz8qZgWqmiW6AUyeRaUK/n4HX0cvDm3jZRzjjSjvbSDi6wmWy01un6Ey3p0PAo0Su21bJYDmm7ky4o0LYSji9vGrMVDim7k3TRjfCfT2lwnw7kbv1AAAA/3RSTlMA/gT8/v7+/v7+OgoCNCXyJv4eAfIS/v7+/vC08O/82IOd/CPb8LkHkTL+/Bz88/6R/u+d7diD09MxRLr+/A3GF5sq39uwZ/7//v7+/mr+GwtKlAZ+RAhZRkRXo7lA9RAI7LRNJ8I1s6YFEERFzbP+iarsVP7+/hgR/o3+/vEYV73+xHr+78vC9vEnr4YS9P54Av7+uP7+/v7+/okGrv7+/v7+Tf7+/v7+/v7+0/7+o/7+/v7+0v///////////////////////////v////////////////////////////////////////////////////////////////////5DvfAEAAADEElEQVRIx9WWdVDcQBTGOSMJHA7F3d3dtZ0CRetu1N3d3d3d3XPXFOgBgxUtUnd3d5lp7rIH2VzS8m/fbOY2m/fb73uXZDdqav9BOIcFDQh0tLJyDOwTFNbrn+la/n5lJXo4juA4r6CkzM8/56/poeFu3ggU3m7hrpzpmj6e1Nz0hut5+miy5+sGF1JJpXSMPAqD+7HlawT4AhvqU8bCvnwDNFjyveSTKWY9jxVdpyuQzUuF0B2N0wDpzQgYwHvrMuoN4TU7UMcwrGgc7IoXAlfuUoBAClKsuBBSQApc6Pmu7jgTkF7jQQDuHkoDnCB5uSUyRsCmEKfm/BxTXFVBWgwr4KZaTYAtwgZgV2AAsVXmd7BkB4oZgKUzANrzELYaMCyC8dd2BoANzq4gLYcVcBsAmHMBV3kwYA4Aa4TDElYKX7AGgAWXgnQurGABADtOoBwG7AAg4LQ0C74gAIAOp8IlWGEaABI4gSIYSABAN05LK8BISoriZy0ARjIUnl8kIy+vNdkUg5fr6ol93+sQfAsA+jKAC8L8fGFubluyyQcbP5kQhIj4eaxxDwAGG8KWWgnJUJ7sOm4iaicSnSYPkxNbATGKqVD5TAjqbPNOVN9wiCDO/vh95uvHbasoYAgTePRECbx93/BZdoQgTn77JZPVoispYFA0w9LmjcDS9h27ZQeM94tEp6pQeSyfThFDI1WKphTuv3pjLJHs/fDlcI0ElZBtDgXwu3IUvUYx78HandUoFbNB2R4OkMKLSqBwV6KY+HW1MdWRzFO+193N6MDjBwC4A/JqUNBBlYC4Sw8a8PRhMgXcAnlNbVHTUsPvaKasYUOyULia6k5CGTG/eTXjd3IACi83VVSsoxRuMxWW0tZLA+2BkdQdXJ97DzzRN6pgYOFiaA3vOSaa8aSPnwo7mmwAbxPiCTOWGNLfGcPhw+gKMyeq7FwGRnFJsQvidQQCnfj+sUlxRvqJqBJAEz1Yd1NxVIy+vba2vX5MlJg8NUo9R9k5mrqsZd8S/LSM7MzM7Iw0fsu/P7LS07NA9w8Y3j+FBDSaoQAAAABJRU5ErkJggg==';
-
-    button.innerHTML = `
-    <div id='button-container'>
-        <p id='recipe-text'>Show Recipe</p>
-    </div>
-    <img src=${base64} id='icon-img'/>
-    `;
-    
-    /*<p id='draggable-section'>Drag me!</p> to be added within the button container*/
-
-    document.body.appendChild(button);
-
-    /* Make the button clickable */
-    button.addEventListener('click', () => {
-        showRecipe();
-        button.remove();
-    });
-}
-
-
-/* This function creates the popup div */
+/* This function creates the popup div with a simple header */
 function createDiv() {
     let div = document.createElement('div');
     div.id = 'recipe-popup';
-
-    // add header
     let header = document.createElement('h1');
     header.textContent = "Recipe Extractor";
-    header.style.color = nightMode ? 'white' : 'black';
     div.appendChild(header);
-
     return div;
 }
 
@@ -169,19 +123,15 @@ function createDiv() {
 function showRecipe() {
     let div = createDiv();
 
-    // escape key closes the popup
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            closePopup();
-        }
-    });
 
-    // add close button
+    /* Close popup functionality */
+    document.addEventListener('keydown', function(event) {if (event.key === 'Escape') closePopup();});
     let closeButton = document.createElement('button');
     closeButton.id = 'recipe-close-button';
-    closeButton.textContent = 'Exit';
+    closeButton.textContent = 'Disable Recipe Extractor';
     div.appendChild(closeButton);
-    closeButton.addEventListener('click', () => { closePopup(); });
+    closeButton.addEventListener('click', () => { chrome.storage.sync.set({enabled: false}); });
+
 
     // add recipe title
     let header = document.createElement('h2');
@@ -246,12 +196,17 @@ function showRecipe() {
         if(el.tagName==="LINK" || el.tagName==="STYLE") el.remove();
         else el.removeAttribute("style");
     });
-    
+
     document.body.innerHTML = '';
 
     // append new styles and html
     document.body.appendChild(div);
-    updateNightMode(nightMode);
+    // Restore night mode
+    chrome.storage.sync.get(['nightMode'], function (result) {
+        nightMode = result.nightMode;
+        nightMode ? updateNightMode(nightMode) : updateNightMode(false);
+    });
+
     window.scrollTo(0, 0);
 
     // remove all iframes
@@ -269,19 +224,10 @@ function showRecipe() {
 }
 
 
-/* This function closes the recipe extractor by simply reloading the page */
+/* Closes the recipe extractor. */
 function closePopup() { 
-    chrome.storage.sync.get(['immediatePopup'], function (result) {
-        if (result.immediatePopup) {
-            // turn off immediatePopup temporarily, only add button
-            chrome.storage.sync.set({immediatePopup: false});
-            location.reload();
-            setTimeout(() => {chrome.storage.sync.set({immediatePopup: result.immediatePopup})}, 2000);
-        } else {
-            // reloading is cleaner and faster
-            location.reload();
-        }
-    }); 
+    enabled = false;
+    location.reload();
 }
 
 
