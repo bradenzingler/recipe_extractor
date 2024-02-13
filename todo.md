@@ -1,8 +1,7 @@
-* [ ] Explore replacing entire webpage, maybe add switch for it as well
-* [ ] Make UI more consistent, override existing website,Remove ads/videos from recipe pop ups
-* [ ] Test on more websites
-* [ ] Add more support on chrome listing and images
-* [X] Fix nightmode to refresh when extension enabled
-* [ ] Add blacklists feature
-* [ ] Block all ads feature
-* [ ] When enabled, should check website again
+* [ ] Add blacklists
+* [ ] Make chrome listing better
+* [X] fix text formatting
+* [ ] test on more websites, add more supported websites
+* [X] Explore a more dynamic ad removal approach, fix some bugs with it
+* [ ] Make code more concise and clean up everything
+* [ ] Make button location customizable
