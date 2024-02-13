@@ -1,3 +1,4 @@
+
 /**
  * This file contains the content script that is injected into the webpage to allow 
  * the user to extract the recipe from the current webpage.
@@ -10,33 +11,39 @@ var nightMode = false;
 var enabled = false;
 var blacklist;
 var ignored = ['recipe-extractor-button', 'button-container', 'recipe-text', 'icon-img', 'recipe-close-button', 'recipe-overlay'];
+var ogHTML = document.body.innerHTML;
+var ogCSS = document.head.innerHTML;
 
 /* instructions selectors */
 recipe_selectors = [
-    '.wprm-recipe-ingredient',          // damndelicious.net ingredients
-    '.wprm-recipe-instruction',         // damndelicious.net instructions
-    '.ingredient-lists',                // delish.com ingredients
-    '.directions > li > ol > li',       // delish.com instructions
-    '.ingredients',
-    '.recipe-ingredients',
-    '.instructions',
-    '.mntl-structured-ingredients', 
-    '.recipe__ingredients',
-    '#zrdn-recipe-container',
-    '#tasty-recipes-70437',
-    '.recipe__instructions',
-    '.recipe-directions',
-    '.mntl-recipe-steps',
-    '.Wrapper-dxnTBC',
-    '.InstructionListWrapper-dcpygI',
-    '#structured-ingredients_1-0',      // simplyrecipes.com ingredients
-    '#structured-project__steps_1-0',   // simplyrecipes.com instructions
-    '.o-Ingredients__m-Body',           // foodnetwork.com ingredients
-    '#mod-recipe-method-1',             // foodnetwork.com instructions
+    '.wprm-recipe-instruction',                 // damndelicious.net instructions
+    '.directions > li > ol > li',               // delish.com instructions
+    '.direction-list',                          // food.com instructions FINISH UP
+    'mntl-sc-block-group--LI',                  // allrecipes.com instructions
+    '.InstructionListWrapper-dcpygI',           // epicurious.com instructions
+    '#structured-project__steps_1-0',           // simplyrecipes.com instructions
+    '#mod-recipe-method-1',                     // foodnetwork.com instructions
+    '.grouped-list',                            // bbcgoodfood.com instructions
+    '.field-instructionstext',                  // countrycrock.com instructions
+    '.cooked-recipe-directions',                // lifeandhealth.org instructions
+    '.tasty-recipes-instructions-body > ol > li', // sallysbakingaddiction.com instructions
+    '.recipe-instructions > div > ol',          // gordonramsay.com instructions
+    '.mntl-recipe-steps > div > ol',            // southernliving.com instructions
 ];
 /* ingredients selectors */
 ingr_selectors = [
-
+    '.Wrapper-dxnTBC',                          // epicurious.com ingredients
+    '.mntl-structured-ingredients__list-item',  // allrecipes.com, southernliving.com ingredients
+    '.wprm-recipe-ingredient',                  // damndelicious.net ingredients
+    '.ingredient-lists > li > p',               // delish.com ingredients
+    '#structured-ingredients_1-0',              // simplyrecipes.com ingredients
+    '.o-Ingredients__m-Body',                   // foodnetwork.com ingredients
+    '.ingredient-list',                         // food.com ingredients
+    '.recipe__ingredients',                     // bbcgoodfood.com ingredients
+    '.field-ingredientstext',                   // countrycrock.com ingredients
+    '.cooked-recipe-ingredients',               // lifeandhealth.org ingredients
+    '.tasty-recipes-ingredients-body > ul > li', // sallysbakingaddiction.com ingredients
+    '.recipe-ingredients',                // gordonramsay.com ingredients
 ];
 
 
@@ -181,53 +188,65 @@ function showRecipe() {
     header.textContent = document.title;
     div.appendChild(header);
 
-    let isIng = true;
+    // TODO make this way more concise, lots of duplicate code here
     let rHeader = false;
     let iHeader = false;
 
-    // add ingredients and instructions information
-    recipe_selectors.forEach(function (s) {
+    // add ingredients first
+    ingr_selectors.forEach(function (s) {
         let recipes = document.querySelectorAll(s);
         recipes.forEach(recipe => {
             if (recipe) {
-                // TODO this code needs to be cleaned up
-                if (isIng && !iHeader) {
-                    if (recipe.querySelector('h2')) recipe.querySelector('h2').remove()
+                // remove any existing headers
+                if (recipe.querySelector('h2')) recipe.querySelector('h2').remove()
+                if (recipe.querySelector('h3')) recipe.querySelector('h3').remove()
 
+                if (!rHeader) {
                     let ingredientsHeader = document.createElement('h3');
                     ingredientsHeader.id = 'i-header';
                     ingredientsHeader.textContent = 'Ingredients';
                     ingredientsHeader.style.marginTop = '5%';
-
                     div.appendChild(ingredientsHeader);
-                    div.appendChild(document.createElement('hr'));
-                    isIng = false;
-                    iHeader = true;
-                } else if (!isIng && !rHeader) {
-                    if (recipe.querySelector('h2')) recipe.querySelector('h2').remove()
-
-                    let recipeHeader = document.createElement('h3');
-                    recipeHeader.id = 'r-header';
-                    recipeHeader.textContent = 'Instructions';
-                    recipeHeader.style.marginTop = '5%';
-
-                    div.appendChild(recipeHeader);
                     div.appendChild(document.createElement('hr'));
                     rHeader = true;
                 }
-                standardizeFormatting();
-                let clone = recipe.cloneNode(true);
-                div.appendChild(clone);
+                recipe.style.listStyle = 'none';
+                div.appendChild(recipe); 
             }
         });
     });
 
+    // add instructions
+    recipe_selectors.forEach(function (s) {
+        let recipes = document.querySelectorAll(s);
+        recipes.forEach(recipe => {
+            if (recipe) {
+                // remove any existing headers
+                if (recipe.querySelector('h2')) recipe.querySelector('h2').remove()
+                if (recipe.querySelector('h3')) recipe.querySelector('h3').remove()
+
+                if (!iHeader) {
+                    let ingredientsHeader = document.createElement('h3');
+                    ingredientsHeader.id = 'i-header';
+                    ingredientsHeader.textContent = 'Instructions';
+                    ingredientsHeader.style.marginTop = '5%';
+                    div.appendChild(ingredientsHeader);
+                    div.appendChild(document.createElement('hr'));
+                    iHeader = true;
+                }
+                recipe.style.listStyle = 'none';
+                div.appendChild(recipe); 
+            }
+        });
+        // TODO here is where error handling will be
+});
     // remove all existing styles and html
     let elements = document.querySelectorAll("*");
     elements.forEach(el=>{
         if(el.tagName==="LINK" || el.tagName==="STYLE") el.remove();
         else el.removeAttribute("style");
     });
+    
     document.body.innerHTML = '';
 
     // append new styles and html
@@ -249,10 +268,20 @@ function showRecipe() {
     }, 5000);
 }
 
+
 /* This function closes the recipe extractor by simply reloading the page */
-function closePopup() {    
-    // refresh the page
-    location.reload();
+function closePopup() { 
+    chrome.storage.sync.get(['immediatePopup'], function (result) {
+        if (result.immediatePopup) {
+            // turn off immediatePopup temporarily, only add button
+            chrome.storage.sync.set({immediatePopup: false});
+            location.reload();
+            setTimeout(() => {chrome.storage.sync.set({immediatePopup: result.immediatePopup})}, 2000);
+        } else {
+            // reloading is cleaner and faster
+            location.reload();
+        }
+    }); 
 }
 
 
@@ -260,6 +289,7 @@ function closePopup() {
 function standardizeFormatting() {
     let nodes = document.querySelectorAll('*');
 
+    // random problematic classes and tags to remove
     let sC = ['mntl-sc-block-image', 'css-0'];
 
     nodes.forEach(node => {
@@ -274,17 +304,14 @@ function standardizeFormatting() {
         if (document.querySelectorAll('iframe')) {
             document.querySelectorAll('iframe').forEach(iframe => iframe.remove());
         }
-        /* Remove all strong tags and append their text to the parent */
-        // if(document.querySelectorAll('strong')) {
-        //     // take all text within parent of the strong and make it into new li 
-        //     document.querySelectorAll('strong').forEach(strong => {
-        //         let parent = strong.parentElement;
-        //         parent.textContent += strong.textContent;
-        //         strong.remove();
-        //     });
-            
-        // }
     });
+    // iterate through clones children
+    for (let i = 0; i < clone.children.length; i++) {
+        let child = clone.children[i];
+        if (child.tagName === 'a') {
+            child.remove();
+        }
+    }
 }
 
 
