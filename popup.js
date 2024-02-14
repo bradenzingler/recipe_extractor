@@ -5,6 +5,8 @@
 document.addEventListener('DOMContentLoaded', function() {
 
 
+
+
     /***************** Settings for toggling the extension *************/
     let button = document.getElementById('toggle-extension');
     // restore the state of the button
@@ -18,6 +20,8 @@ document.addEventListener('DOMContentLoaded', function() {
         button.style.backgroundColor = button.textContent === 'Enabled' ? 'green' : 'red';
         chrome.storage.sync.set({enabled: button.textContent === 'Enabled'});
     });
+
+
 
 
     /******************** Settings for night mode *******************/
@@ -37,6 +41,46 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.style.backgroundColor = nightMode.checked ? '#333' : 'white';
         document.body.style.color = nightMode.checked ? 'white' : '#333';
     });
+
+
+
+
+    /******************** Blacklist settings *********************************/
+    let blacklistContainer = document.querySelector('#blacklist');
+    // add li for each blacklisted site
+    chrome.storage.local.get(["blacklist"], function(data) {
+        if (data.blacklist !== null){
+            data.blacklist.forEach(site => {
+                let li = document.createElement('li');
+                let dbtn = document.createElement('button');
+                dbtn.id = 'delete-item';
+                dbtn.textContent = "Delete"
+                li.textContent = site;
+                li.appendChild(dbtn);
+                dbtn.addEventListener('click', function () {deleteSite(li);});
+                blacklistContainer.appendChild(li);
+            });
+        } 
+    });
+    /* Deletes a site from the blacklist */
+    async function deleteSite(siteLi) {
+        siteLi.remove()
+        let newBlacklist = [];
+        let hostname = siteLi.textContent;
+        let req = chrome.storage.local.get(["blacklist"]);
+        let blacklist = req.blacklist;  
+        for (element in blacklist) {
+            if (element !== hostname) newBlacklist.push(element);
+        }
+        await chrome.storage.local.set({"blacklist": newBlacklist});
+    }
+    // button to clear entire l ist
+    document.querySelector('#clear-blacklist').addEventListener('click', async function() {
+        blacklistContainer.innerHTML = '';
+        await chrome.storage.local.set({"blacklist": null});
+    });
+
+
 
 
 });

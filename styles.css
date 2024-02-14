@@ -1,35 +1,27 @@
 #recipe-popup {
-    z-index: 100000000000000000000;
+    z-index: 100000000000000000000000000000000000000;
     font-family: 'Product Sans', sans-serif;
     margin: 20%;
     margin-top: 5%;
 }
 
-#recipe-close-button {
-    all: unset;
-    position: fixed;
-    top: 5px;
-    right: 5px;
-    z-index: 1000000000;
-    background-color: #0066ff;
-    font-weight: bold;
-    font-size: 20px;
+#blacklist-button {
+    background-color: rgb(253, 57, 57);
     color: white;
-    font-family: 'Product Sans', sans-serif;
-    cursor: pointer;
-    text-align: center;
-    margin: auto;
-    padding: 10px;
     border: none;
     border-radius: 10px;
-    display: flex;
+    font-size: 20px;
+    padding: 1%;
 }
 
-#recipe-close-button:hover {
+#blacklist-button:hover {
     background-color: white;
-    color: #0066ff;
+    color: rgb(253, 57, 57);
+    cursor: pointer;
 }
 
-
+#icon-img {
+    width: 28%;
+}
 
 

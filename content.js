@@ -1,26 +1,22 @@
-
 /**
- * This file contains the content script that is injected into the webpage to allow 
- * the user to extract the recipe from the current webpage.
+ * This file contains the content script that is injected into the webpage to 
+ * extract the recipe from the current webpage.
  * 
- * Author: Braden Zingler
- * Email: bgzingler@wisc.edu
- * Last updated: 2/12/2024
+ * Last updated: 2/14/2024
  */
 var nightMode = false;
 var enabled = false;
-var blacklist;
-var ignored = ['recipe-close-button', 'recipe-overlay'];
-var ogHTML = document.body.innerHTML;
-var ogCSS = document.head.innerHTML;
+var ignored = ['recipe-overlay', 'icon-img', 'blacklist-button'];
+
+
 
 
 /* instructions selectors */
 recipe_selectors = [
-    '.wprm-recipe-instruction',                 // damndelicious.net instructions
+    '.wprm-recipe-instruction-text',            // damndelicious.net instructions
     '.directions > li > ol > li',               // delish.com instructions
     '.direction-list',                          // food.com instructions FINISH UP
-    'mntl-sc-block-group--LI',                  // allrecipes.com instructions
+    '.mntl-sc-block-group--OL > li > p',        // allrecipes.com instructions
     '.InstructionListWrapper-dcpygI',           // epicurious.com instructions
     '#structured-project__steps_1-0',           // simplyrecipes.com instructions
     '#mod-recipe-method-1',                     // foodnetwork.com instructions
@@ -30,6 +26,8 @@ recipe_selectors = [
     '.tasty-recipes-instructions-body > ol > li', // sallysbakingaddiction.com instructions
     '.recipe-instructions > div > ol',          // gordonramsay.com instructions
     '.mntl-recipe-steps > div > ol',            // southernliving.com instructions
+    '.recipe-directions__item',                 // tasteofhome.com instructions
+    '.tasty-recipes-instructions > div > ol > li'
 ];
 /* ingredients selectors */
 ingr_selectors = [
@@ -44,45 +42,58 @@ ingr_selectors = [
     '.field-ingredientstext',                   // countrycrock.com ingredients
     '.cooked-recipe-ingredients',               // lifeandhealth.org ingredients
     '.tasty-recipes-ingredients-body > ul > li', // sallysbakingaddiction.com ingredients
-    '.recipe-ingredients',                      // gordonramsay.com ingredients
+    '.recipe-ingredients__list',                // tasteofhome.com ingredients
+    '.recipe-ingredients > ul > li',            // gordonramsay.com ingredients
+    '.tasty-recipes-ingredients > div > ul > li' //acouplecooks.com
 ];
 
 
 
-// Fetch the toggle state from storage
+
+/* The initial script */
 chrome.storage.sync.get('enabled', function(data) {
     enabled = data.enabled;
-    // Check if the extension is enabled and it's a recipe page
-    if (enabled && isRecipePage()) {
-        showRecipe();
-        // Restore nightMode setting
-        chrome.storage.sync.get(['nightMode'], function (result) {
-            nightMode = result.nightMode;
-            nightMode ? updateNightMode(nightMode) : updateNightMode(false);
-        });
-    }
+    console.log(isRecipePage());
+    let blacklist = getBlacklist();
+    blacklist.then((blacklist) => {
+            if (enabled && isRecipePage() && (blacklist === null || !blacklist.includes(window.location.hostname))) {
+                showRecipe();
+                chrome.storage.sync.get(['nightMode'], function (result) {
+                    nightMode = result.nightMode;
+                    nightMode ? updateNightMode(nightMode) : updateNightMode(false);
+                });
+            }
+    });
 });
+
+
 
 
 /************** EVENT LISTENERS ******************/
 // Add listener for toggle changes
 chrome.storage.onChanged.addListener(function(changes, namespace){
-    if (changes.enabled) toggleExtension(changes.enabled.newValue);    
+    if (changes.enabled) toggleExtension(changes.enabled.newValue); 
+    if (changes.nightMode && isRecipePage()) updateNightMode(changes.nightMode.newValue);       
 });
-
-// Add listener for night mode changes only if it is a recipe page
-chrome.storage.onChanged.addListener(function(changes, namespace){
-    if (changes.nightMode && isRecipePage()) updateNightMode(changes.nightMode.newValue);    
-});
-/************** END EVENT LISTENERS **************/
+/***************** EVENT LISTENERS **************/
 
 
-/* This function handles changes in night mode settings */
+
+
+/* Get blacklist */
+async function getBlacklist() {
+    let req = await chrome.storage.local.get(["blacklist"]);
+    return req.blacklist;
+}
+
+
+
+
+/* Changes night mode settings */
 function updateNightMode(newValue) {
     // Update nightMode setting
     nightMode = newValue;
     let elements = document.querySelectorAll('*');
-
     // Apply night-mode styles
     elements.forEach(element => {
         if (!ignored.includes(element.id)) {
@@ -93,22 +104,24 @@ function updateNightMode(newValue) {
 }
 
 
+
+
 /* This function handles changes in extension visibility settings */
 function toggleExtension(newValue) {
     enabled = newValue;
+
     if (isRecipePage() && enabled) {
         showRecipe();
-        
     } else if(document.getElementById('recipe-popup')) {
-        // popup is up and the extension is disabled
         document.getElementById('recipe-popup') ? closePopup() : null;
     } 
-    // Update nightMode setting
     updateNightMode(nightMode);
 }
 
 
-/* This function creates the popup div with a simple header */
+
+
+/* This function creates the recipe popup. */
 function createDiv() {
     let div = document.createElement('div');
     div.id = 'recipe-popup';
@@ -119,20 +132,30 @@ function createDiv() {
 }
 
 
+
+
 /* This function extracts the recipe from the current webpage */
 function showRecipe() {
     let div = createDiv();
 
-
-    /* Close popup functionality */
-    document.addEventListener('keydown', function(event) {if (event.key === 'Escape') closePopup();});
-    let closeButton = document.createElement('button');
-    closeButton.id = 'recipe-close-button';
-    closeButton.textContent = 'Disable Recipe Extractor';
-    div.appendChild(closeButton);
-    closeButton.addEventListener('click', () => { chrome.storage.sync.set({enabled: false}); });
-
-
+    // Blacklist button functionality
+    let blacklistButton = document.createElement('button');
+    blacklistButton.id = 'blacklist-button';
+    blacklistButton.textContent = `Disable for ${window.location.hostname}`;
+    div.appendChild(blacklistButton);
+    blacklistButton.addEventListener('click', async () => {
+        let hostName = window.location.hostname;
+        var dt = await chrome.storage.local.get(["blacklist"]);
+        let blacklist = dt.blacklist;
+        if (!blacklist) {
+            blacklist = [hostName];
+        } else if(!blacklist.includes(hostName)) {
+            blacklist.push(hostName);
+        }
+        await chrome.storage.local.set({ blacklist : blacklist});
+        location.reload();
+    });
+   
     // add recipe title
     let header = document.createElement('h2');
     header.textContent = document.title;
@@ -161,6 +184,7 @@ function showRecipe() {
                     rHeader = true;
                 }
                 recipe.style.listStyle = 'none';
+                recipe.style.marginTop = '2%';
                 div.appendChild(recipe); 
             }
         });
@@ -185,34 +209,28 @@ function showRecipe() {
                     iHeader = true;
                 }
                 recipe.style.listStyle = 'none';
+                recipe.style.marginTop = '2%';
                 div.appendChild(recipe); 
             }
         });
-        // TODO here is where error handling will be
 });
-    // remove all existing styles and html
+
+    // Remove existing styles
     let elements = document.querySelectorAll("*");
     elements.forEach(el=>{
         if(el.tagName==="LINK" || el.tagName==="STYLE") el.remove();
         else el.removeAttribute("style");
     });
-
     document.body.innerHTML = '';
-
-    // append new styles and html
     document.body.appendChild(div);
-    // Restore night mode
+    window.scrollTo(0, 0);
+
+    // clean up and apply styles
+    standardizeFormatting();
     chrome.storage.sync.get(['nightMode'], function (result) {
         nightMode = result.nightMode;
         nightMode ? updateNightMode(nightMode) : updateNightMode(false);
     });
-
-    window.scrollTo(0, 0);
-
-    // remove all iframes
-    if (document.querySelectorAll('iframe')) {
-        document.querySelectorAll('iframe').forEach(iframe => iframe.remove());
-    }
 
     // remove delayed popups
     setTimeout(() => {
@@ -224,11 +242,17 @@ function showRecipe() {
 }
 
 
-/* Closes the recipe extractor. */
+
+
+/* Closes the recipe extractor popup. */
 function closePopup() { 
-    enabled = false;
     location.reload();
+    chrome.storage.sync.get(['nightMode'], function (result) {
+        nightMode = result.nightMode;
+        nightMode ? updateNightMode(nightMode) : updateNightMode(false);
+    });
 }
+
 
 
 /* This function standardizes the formatting of the recipe */
@@ -241,24 +265,18 @@ function standardizeFormatting() {
     nodes.forEach(node => {
         node.classList.forEach(c => {
             if (c.includes('img') || sC.includes(c)) node.remove();
-            }
-        );
+        });
         if (node.textContent !== '') {
             node.style.fontWeight = 'normal';
             node.style.fontFamily = 'Product Sans, sans-serif';
         }
-        if (document.querySelectorAll('iframe')) {
-            document.querySelectorAll('iframe').forEach(iframe => iframe.remove());
-        }
     });
-    // iterate through clones children
-    for (let i = 0; i < clone.children.length; i++) {
-        let child = clone.children[i];
-        if (child.tagName === 'a') {
-            child.remove();
-        }
+    if (document.querySelectorAll('iframe')) {
+        document.querySelectorAll('iframe').forEach(iframe => iframe.remove());
     }
 }
+
+
 
 
 /* This function determines if the current webpage is a recipe page */
@@ -268,4 +286,10 @@ function isRecipePage() {
             return true;
         }
     }
+    for (let i = 0; i < ingr_selectors.length; i++) {
+        if (document.querySelector(ingr_selectors[i])) {
+            return true;
+        }
+    }
+    return false;
 }
