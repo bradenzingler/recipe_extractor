@@ -10,12 +10,12 @@ var ignored = ['recipe-overlay', 'icon-img', 'blacklist-button'];
 
 
 
-
+//https://www.bonappetit.com/recipe/bas-best-chicken-parm fix pictures
 /* instructions selectors */
 recipe_selectors = [
     '.wprm-recipe-instruction-text',            // damndelicious.net instructions
     '.directions > li > ol > li',               // delish.com instructions
-    '.direction-list',                          // food.com instructions FINISH UP
+    '.direction-list > li',                          // food.com instructions FINISH UP
     '.mntl-sc-block-group--OL > li > p',        // allrecipes.com instructions
     '.InstructionListWrapper-dcpygI',           // epicurious.com instructions
     '#structured-project__steps_1-0',           // simplyrecipes.com instructions
@@ -27,7 +27,12 @@ recipe_selectors = [
     '.recipe-instructions > div > ol',          // gordonramsay.com instructions
     '.mntl-recipe-steps > div > ol',            // southernliving.com instructions
     '.recipe-directions__item',                 // tasteofhome.com instructions
-    '.tasty-recipes-instructions > div > ol > li'
+    '.tasty-recipes-instructions > div > ol > li',
+    '.recipe-instruction > ol > li',
+    '.preparation_step__nzZHP',
+    '.recipe-directions > li',
+    '.mv-create-instructions > ol > li',
+    '.Recipe__instructionStepContent > span > p'
 ];
 /* ingredients selectors */
 ingr_selectors = [
@@ -37,14 +42,19 @@ ingr_selectors = [
     '.ingredient-lists > li > p',               // delish.com ingredients
     '#structured-ingredients_1-0',              // simplyrecipes.com ingredients
     '.o-Ingredients__m-Body',                   // foodnetwork.com ingredients
-    '.ingredient-list',                         // food.com ingredients
+    '.ingredient-list > li',                         // food.com ingredients
     '.recipe__ingredients',                     // bbcgoodfood.com ingredients
+    '.Recipe__ingredient',
     '.field-ingredientstext',                   // countrycrock.com ingredients
     '.cooked-recipe-ingredients',               // lifeandhealth.org ingredients
     '.tasty-recipes-ingredients-body > ul > li', // sallysbakingaddiction.com ingredients
     '.recipe-ingredients__list',                // tasteofhome.com ingredients
     '.recipe-ingredients > ul > li',            // gordonramsay.com ingredients
-    '.tasty-recipes-ingredients > div > ul > li' //acouplecooks.com
+    '.tasty-recipes-ingredients > div > ul > li', //acouplecooks.com
+    '.recipe-ingredient > ul > li',
+    '.ingredients_ingredients__FLjsC > ul > li',
+    '.recipe-ingredients > li',
+    '.mv-create-ingredients > ul > li'
 ];
 
 
@@ -53,15 +63,26 @@ ingr_selectors = [
 /* The initial script */
 chrome.storage.sync.get('enabled', function(data) {
     enabled = data.enabled;
-    console.log(isRecipePage());
     let blacklist = getBlacklist();
     blacklist.then((blacklist) => {
-            if (enabled && isRecipePage() && (blacklist === null || !blacklist.includes(window.location.hostname))) {
-                showRecipe();
-                chrome.storage.sync.get(['nightMode'], function (result) {
-                    nightMode = result.nightMode;
-                    nightMode ? updateNightMode(nightMode) : updateNightMode(false);
-                });
+            if (blacklist === null || blacklist === undefined) {
+                if (enabled && isRecipePage()) {
+                    showRecipe();
+                    chrome.storage.sync.get(['nightMode'], function (result) {
+                        nightMode = result.nightMode;
+                        nightMode ? updateNightMode(nightMode) : updateNightMode(false);
+                    });
+                }
+            } else {
+                if (!blacklist.includes(window.location.hostname)) {
+                    if (enabled && isRecipePage()) {
+                        showRecipe();
+                        chrome.storage.sync.get(['nightMode'], function (result) {
+                            nightMode = result.nightMode;
+                            nightMode ? updateNightMode(nightMode) : updateNightMode(false);
+                        });
+                    }
+                }
             }
     });
 });
@@ -112,10 +133,10 @@ function toggleExtension(newValue) {
 
     if (isRecipePage() && enabled) {
         showRecipe();
+        updateNightMode(nightMode);
     } else if(document.getElementById('recipe-popup')) {
         document.getElementById('recipe-popup') ? closePopup() : null;
     } 
-    updateNightMode(nightMode);
 }
 
 
